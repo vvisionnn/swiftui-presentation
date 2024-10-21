@@ -17,9 +17,11 @@ final class ViewControllerReader: UIView {
 
 	override func didMoveToWindow() {
 		super.didMoveToWindow()
-		withCATransaction { [weak self] in
+		CATransaction.begin()
+		CATransaction.setCompletionBlock { [weak self] in
 			guard let self = self else { return }
 			presentingViewControllerReader(viewController)
 		}
+		CATransaction.commit()
 	}
 }

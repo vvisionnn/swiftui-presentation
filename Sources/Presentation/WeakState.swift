@@ -1,42 +1,48 @@
 import Combine
 import SwiftUI
 
-@available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
 @propertyWrapper
 @MainActor @preconcurrency
 struct WeakState<Value: AnyObject>: DynamicProperty {
 	@usableFromInline
-	@MainActor @preconcurrency
-	class Storage: ObservableObject {
-		weak var value: Value? {
-			didSet {
-				if oldValue !== value {
-					objectWillChange.send()
-				}
-			}
-		}
-
-		@usableFromInline
-		init(value: Value?) { self.value = value }
-	}
-
-	@usableFromInline
 	var storage: StateObject<Storage>
 
 	@inlinable
-	@MainActor @preconcurrency
+	@preconcurrency
+	@MainActor
 	init(wrappedValue thunk: @autoclosure @escaping () -> Value?) {
 		self.storage = StateObject<Storage>(wrappedValue: { Storage(value: thunk()) }())
 	}
 
-	@MainActor @preconcurrency
+	@preconcurrency
+	@MainActor
 	var wrappedValue: Value? {
 		get { storage.wrappedValue.value }
 		nonmutating set { storage.wrappedValue.value = newValue }
 	}
 
-	@MainActor @preconcurrency
+	@preconcurrency
+	@MainActor
 	var projectedValue: Binding<Value?> {
 		storage.projectedValue.value
+	}
+}
+
+extension WeakState {
+	@usableFromInline
+	@preconcurrency
+	@MainActor
+	class Storage: ObservableObject {
+		weak var value: Value? {
+			didSet {
+				guard oldValue !== value else { return }
+				objectWillChange.send()
+			}
+		}
+
+		@usableFromInline
+		init(value: Value?) {
+			self.value = value
+		}
 	}
 }

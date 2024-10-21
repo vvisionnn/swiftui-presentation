@@ -1,10 +1,11 @@
 import Combine
 import SwiftUI
 
-struct PresentationWrapper<Destination: View>: UIViewRepresentable {
+struct PresentationBridge<Destination: View>: UIViewRepresentable {
 	@Binding var isPresented: Bool
 	@WeakState var presentingViewController: UIViewController?
 	var destination: Destination
+
 	func makeUIView(context: Context) -> ViewControllerReader {
 		let coordinator = context.coordinator
 		return .init { [weak coordinator] presentingViewController in
@@ -15,26 +16,32 @@ struct PresentationWrapper<Destination: View>: UIViewRepresentable {
 
 	func updateUIView(_ uiView: ViewControllerReader, context: Context) {
 		guard context.coordinator.presentingViewController != nil else { return }
+		context.coordinator.isPresented = $isPresented
 		context.coordinator.destination = destination
 		context.coordinator.presentationState.send(isPresented)
 	}
 
 	func makeCoordinator() -> Coordinator {
-		.init(destination: destination)
+		Coordinator(
+			isPresented: $isPresented,
+			destination: destination
+		)
 	}
 
 	// TODO: Sendable conformances
 	// TODO: add transaction support instead of constant animation
-	class Coordinator: NSObject, @unchecked Sendable {
+	class Coordinator: NSObject, UIViewControllerPresentationDelegate, @unchecked Sendable {
 		weak var presentingViewController: UIViewController?
 		let presentationState: CurrentValueSubject<Bool, Never> = .init(false)
 		private var subscriptions: Set<AnyCancellable> = .init()
 		private let presentationQueue: FIFOQueue = .init(priority: .userInitiated)
 		private var presentedViewController: UIViewController?
 		var destination: Destination
+		var isPresented: Binding<Bool>
 
 		deinit { subscriptions.forEach { $0.cancel() } }
-		public init(destination: Destination) {
+		public init(isPresented: Binding<Bool>, destination: Destination) {
+			self.isPresented = isPresented
 			self.destination = destination
 			super.init()
 			presentationState
@@ -60,110 +67,35 @@ struct PresentationWrapper<Destination: View>: UIViewRepresentable {
 						await presentedViewController.dismiss(animated: true)
 					}
 					let presentedViewController = await UIHostingController(rootView: destination)
+					await MainActor.run {
+						presentedViewController.presentationDelegate = self
+					}
 					self.presentedViewController = presentedViewController
 					await presentingViewController?.present(presentedViewController, animated: true)
 				case (true, false):
 					guard presentedViewController != nil else { return }
 					defer { presentedViewController = nil }
 					await presentingViewController?.dismiss(animated: true)
+					await MainActor.run {
+						presentedViewController?.presentationDelegate = nil
+					}
 				}
 			}
 		}
-	}
-}
 
-extension Publisher {
-	fileprivate func withPrevious() -> AnyPublisher<(previous: Output?, current: Output), Failure> {
-		scan((Output?, Output)?.none) { ($0?.1, $1) }
-			.compactMap { $0 }
-			.eraseToAnyPublisher()
-	}
+		func viewControllerDidDismiss(_ presentingViewController: UIViewController?, animated: Bool) {
+			var transaction = Transaction()
+			transaction.disablesAnimations = true
+			withTransaction(transaction) {
+				self.isPresented.wrappedValue = false
+			}
 
-	fileprivate func withPrevious(
-		_ initialPreviousValue: Output
-	) -> AnyPublisher<(
-		previous: Output,
-		current: Output
-	), Failure> {
-		scan((initialPreviousValue, initialPreviousValue)) { ($0.1, $1) }.eraseToAnyPublisher()
-	}
-}
-
-extension UIViewController {
-	@MainActor
-	func present(_ viewControllerToPresent: UIViewController, animated flag: Bool) async {
-		await withCheckedContinuation { continuation in
-			self.present(viewControllerToPresent, animated: flag) {
-				continuation.resume()
+			// Dismiss already handled by the presentation controller below
+			if let presentingViewController {
+				// presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: animated)
+				presentingViewController.fixSwiftUIHitTesting()
 			}
 		}
-	}
-
-	@MainActor
-	func dismiss(animated flag: Bool) async {
-		await withCheckedContinuation { continuation in
-			self.dismiss(animated: flag) {
-				continuation.resume()
-			}
-		}
-	}
-}
-
-@frozen
-public struct PresentationModifier<Destination: View>: ViewModifier {
-	var isPresented: Binding<Bool>
-	var destination: Destination
-
-	public init(
-		isPresented: Binding<Bool>,
-		destination: Destination
-	) {
-		self.isPresented = isPresented
-		self.destination = destination
-	}
-
-	public func body(content: Content) -> some View {
-		content.background(
-			PresentationWrapper(
-				isPresented: isPresented,
-				destination: destination
-			)
-		)
-	}
-}
-
-extension View {
-	public func presentation<T: Sendable, Destination: View>(
-		item: Binding<T?>,
-		@ViewBuilder destination: (T) -> Destination
-	) -> some View {
-		presentation(isPresented: item.isNotNil()) {
-			if let val = item.wrappedValue {
-				destination(returningLastNonNilValue({ item.wrappedValue }, default: val)())
-			} else {
-				EmptyView()
-			}
-		}
-	}
-
-	public func presentation<Destination: View>(
-		isPresented: Binding<Bool>,
-		@ViewBuilder destination: () -> Destination
-	) -> some View {
-		modifier(
-			PresentationModifier(
-				isPresented: isPresented,
-				destination: destination()
-			)
-		)
-	}
-}
-
-func returningLastNonNilValue<B>(_ f: @escaping () -> B?, default: B) -> () -> B {
-	var lastWrapped: B = `default`
-	return {
-		lastWrapped = f() ?? lastWrapped
-		return lastWrapped
 	}
 }
 
@@ -181,6 +113,28 @@ struct ParentView: View {
 		Rectangle()
 			.foregroundStyle(Color.mint.gradient)
 			.ignoresSafeArea()
+			.onChange(of: isChild2Presented) { val in
+				debugPrint("asd \(isChild2Presented)")
+			}
+			.overlay(content: {
+				VStack {
+					Button(action: {
+						withAnimation(.spring) {
+							isChild1Presented = true
+						}
+					}) {
+						Text("Present 1")
+					}
+
+					Button(action: {
+						withAnimation(.spring) {
+							isChild2Presented = true
+						}
+					}) {
+						Text("Present 2")
+					}
+				}
+			})
 			.presentation(isPresented: $isChild1Presented) {
 				ChildView()
 					.overlay {
@@ -192,7 +146,7 @@ struct ParentView: View {
 							}
 
 							// after a very quick action finished (mock running time 200ms)
-							DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+							DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
 								debugPrint("dismissing child2")
 								withAnimation(.spring) {
 									isChild2Presented = false
@@ -232,5 +186,4 @@ struct ChildView: View {
 #Preview {
 	ParentView()
 }
-
 #endif
