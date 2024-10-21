@@ -1,0 +1,6 @@
+[tools]
+swiftformat = "0.54.6"
+
+[settings]
+jobs = 10
+experimental = true
