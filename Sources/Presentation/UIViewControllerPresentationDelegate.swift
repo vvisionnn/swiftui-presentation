@@ -34,8 +34,7 @@ extension UIViewController {
 		}
 	}
 
-	@objc
-	func swizzled_dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
+	@objc func swizzled_dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
 		var parentDelegates = [UIViewControllerPresentationDelegate]()
 		var presentedDelegates = [UIViewControllerPresentationDelegate]()
 		var next: UIViewController? = parent

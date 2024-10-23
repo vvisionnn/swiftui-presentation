@@ -1,12 +1,12 @@
 /// A queue that executes asynchronous tasks enqueued from a nonisolated context in FIFO order.
 /// Tasks are guaranteed to begin _and end_ executing in the order in which they are enqueued.
 /// Asynchronous tasks sent to this queue work as they would in a `DispatchQueue` type. Attempting to `enqueueAndWait` this queue from a task executing on this queue will result in a deadlock.
-public final class FIFOQueue: Sendable {
+final class FIFOQueue: Sendable {
 	// MARK: Initialization
 
 	/// Instantiates a FIFO queue.
 	/// - Parameter priority: The baseline priority of the tasks added to the asynchronous queue.
-	public init(priority: TaskPriority? = nil) {
+	init(priority: TaskPriority? = nil) {
 		let (taskStream, taskStreamContinuation) = AsyncStream<@Sendable () async -> Void>.makeStream()
 		self.taskStreamContinuation = taskStreamContinuation
 
@@ -26,7 +26,7 @@ public final class FIFOQueue: Sendable {
 	/// Schedules an asynchronous task for execution and immediately returns.
 	/// The scheduled task will not execute until all prior tasks – including suspended tasks – have completed.
 	/// - Parameter task: The task to enqueue.
-	public func enqueue(_ task: @escaping @Sendable () async -> Void) {
+	func enqueue(_ task: @escaping @Sendable () async -> Void) {
 		taskStreamContinuation.yield(task)
 	}
 
@@ -35,7 +35,7 @@ public final class FIFOQueue: Sendable {
 	/// - Parameters:
 	///   - isolatedActor: The actor within which the task is isolated.
 	///   - task: The task to enqueue.
-	public func enqueue<ActorType: Actor>(
+	func enqueue<ActorType: Actor>(
 		on isolatedActor: ActorType,
 		_ task: @escaping @Sendable (isolated ActorType) async -> Void
 	) {
@@ -46,7 +46,7 @@ public final class FIFOQueue: Sendable {
 	/// The scheduled task will not execute until all prior tasks – including suspended tasks – have completed.
 	/// - Parameter task: The task to enqueue.
 	/// - Returns: The value returned from the enqueued task.
-	public func enqueueAndWait<T: Sendable>(_ task: @escaping @Sendable () async -> T) async -> T {
+	func enqueueAndWait<T: Sendable>(_ task: @escaping @Sendable () async -> T) async -> T {
 		await withUnsafeContinuation { continuation in
 			taskStreamContinuation.yield {
 				continuation.resume(returning: await task())
@@ -60,7 +60,7 @@ public final class FIFOQueue: Sendable {
 	///   - isolatedActor: The actor within which the task is isolated.
 	///   - task: The task to enqueue.
 	/// - Returns: The value returned from the enqueued task.
-	public func enqueueAndWait<ActorType: Actor, T: Sendable>(
+	func enqueueAndWait<ActorType: Actor, T: Sendable>(
 		on isolatedActor: isolated ActorType,
 		_ task: @escaping @Sendable (isolated ActorType) async -> T
 	) async -> T {
@@ -75,7 +75,7 @@ public final class FIFOQueue: Sendable {
 	/// The scheduled task will not execute until all prior tasks – including suspended tasks – have completed.
 	/// - Parameter task: The task to enqueue.
 	/// - Returns: The value returned from the enqueued task.
-	public func enqueueAndWait<T: Sendable>(_ task: @escaping @Sendable () async throws -> T) async throws -> T {
+	func enqueueAndWait<T: Sendable>(_ task: @escaping @Sendable () async throws -> T) async throws -> T {
 		try await withUnsafeThrowingContinuation { continuation in
 			taskStreamContinuation.yield {
 				do {
@@ -93,7 +93,7 @@ public final class FIFOQueue: Sendable {
 	///   - isolatedActor: The actor within which the task is isolated.
 	///   - task: The task to enqueue.
 	/// - Returns: The value returned from the enqueued task.
-	public func enqueueAndWait<ActorType: Actor, T: Sendable>(
+	func enqueueAndWait<ActorType: Actor, T: Sendable>(
 		on isolatedActor: isolated ActorType,
 		_ task: @escaping @Sendable (isolated ActorType) async throws -> T
 	) async throws -> T {

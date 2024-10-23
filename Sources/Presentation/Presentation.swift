@@ -2,8 +2,9 @@ import Combine
 import SwiftUI
 
 struct PresentationBridge<Destination: View>: UIViewRepresentable {
-	@Binding var isPresented: Bool
 	@WeakState var presentingViewController: UIViewController?
+	@Binding var isPresented: Bool
+	var transition: TransitionType
 	var destination: Destination
 
 	func makeUIView(context: Context) -> ViewControllerReader {
@@ -18,16 +19,20 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 		guard context.coordinator.presentingViewController != nil else { return }
 		context.coordinator.isPresented = $isPresented
 		context.coordinator.destination = destination
+		context.coordinator.transition = transition
 		context.coordinator.presentationState.send(isPresented)
 	}
 
 	func makeCoordinator() -> Coordinator {
 		Coordinator(
 			isPresented: $isPresented,
+			transition: transition,
 			destination: destination
 		)
 	}
+}
 
+extension PresentationBridge {
 	// TODO: Sendable conformances
 	// TODO: add transaction support instead of constant animation
 	class Coordinator: NSObject, UIViewControllerPresentationDelegate, @unchecked Sendable {
@@ -38,10 +43,16 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 		private var presentedViewController: UIViewController?
 		var destination: Destination
 		var isPresented: Binding<Bool>
+		var transition: TransitionType
 
 		deinit { subscriptions.forEach { $0.cancel() } }
-		public init(isPresented: Binding<Bool>, destination: Destination) {
+		public init(
+			isPresented: Binding<Bool>,
+			transition: TransitionType,
+			destination: Destination
+		) {
 			self.isPresented = isPresented
+			self.transition = transition
 			self.destination = destination
 			super.init()
 			presentationState
@@ -68,7 +79,12 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 					}
 					let presentedViewController = await UIHostingController(rootView: destination)
 					await MainActor.run {
+						if let transitioningDelegate = self.transition.transitioningDelegate {
+							presentedViewController.modalPresentationStyle = self.transition.modalPresentationStyle
+							presentedViewController.transitioningDelegate = transitioningDelegate
+						}
 						presentedViewController.presentationDelegate = self
+						presentedViewController.view.backgroundColor = .clear
 					}
 					self.presentedViewController = presentedViewController
 					await presentingViewController?.present(presentedViewController, animated: true)
@@ -98,92 +114,3 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 		}
 	}
 }
-
-#if DEBUG
-struct ParentView: View {
-	@State private var isChild1Presented = true
-	@State private var isChild2Presented = false
-
-	// The problem is, by design, view is following the state change
-	// so after we click the button, the child 1 should be dismiss
-	// and child 2 should be presented then dismiss
-	// but the behavior is, child 1 is dismissed, child 2 is presented
-	// NOTE: replace the `.presentation` with SwiftUI native `.sheet` there is no problem
-	var body: some View {
-		Rectangle()
-			.foregroundStyle(Color.mint.gradient)
-			.ignoresSafeArea()
-			.onChange(of: isChild2Presented) { val in
-				debugPrint("asd \(isChild2Presented)")
-			}
-			.overlay(content: {
-				VStack {
-					Button(action: {
-						withAnimation(.spring) {
-							isChild1Presented = true
-						}
-					}) {
-						Text("Present 1")
-					}
-
-					Button(action: {
-						withAnimation(.spring) {
-							isChild2Presented = true
-						}
-					}) {
-						Text("Present 2")
-					}
-				}
-			})
-			.presentation(isPresented: $isChild1Presented) {
-				ChildView()
-					.overlay {
-						Button(action: {
-							debugPrint("dismissing child1 and present child2")
-							withAnimation(.spring) {
-								isChild1Presented = false
-								isChild2Presented = true
-							}
-
-							// after a very quick action finished (mock running time 200ms)
-							DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-								debugPrint("dismissing child2")
-								withAnimation(.spring) {
-									isChild2Presented = false
-								}
-							}
-						}) {
-							Text("Dismiss then present child2")
-								.foregroundStyle(Color.white)
-								.font(.system(.headline))
-						}
-					}
-			}
-			.presentation(isPresented: $isChild2Presented) {
-				ChildView()
-			}
-	}
-}
-
-struct ChildView: View {
-	var timePublisher = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-	@State var currentTime: Date = .init()
-
-	var body: some View {
-		Rectangle()
-			.foregroundStyle(Color.pink.gradient)
-			.ignoresSafeArea()
-			.onReceive(timePublisher) { _ in currentTime = Date() }
-			.overlay(alignment: .top) {
-				Text("Current time: \(currentTime.description)")
-					.foregroundStyle(Color.white)
-					.font(.system(.headline))
-					.padding(.top)
-			}
-	}
-}
-
-#Preview {
-	ParentView()
-}
-#endif
