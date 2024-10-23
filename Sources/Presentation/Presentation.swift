@@ -90,10 +90,10 @@ extension PresentationBridge {
 					await presentingViewController?.present(presentedViewController, animated: true)
 				case (true, false):
 					guard presentedViewController != nil else { return }
-					defer { presentedViewController = nil }
+					defer { self.presentedViewController = nil }
 					await presentingViewController?.dismiss(animated: true)
 					await MainActor.run {
-						presentedViewController?.presentationDelegate = nil
+						self.presentedViewController?.presentationDelegate = nil
 					}
 				}
 			}
