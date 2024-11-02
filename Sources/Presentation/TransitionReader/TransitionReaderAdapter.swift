@@ -1,49 +1,8 @@
 #if os(iOS)
-
 import SwiftUI
 import UIKit
 
-@frozen
-public struct TransitionReaderProxy {
-	/// The progress state of the transition from 0 to 1 where 1 is fully presented.
-	public var progress: CGFloat
-	public var isTransitioning: Bool
-
-	@usableFromInline
-	init(progress: CGFloat, isTransitioning: Bool) {
-		self.progress = progress
-		self.isTransitioning = isTransitioning
-	}
-}
-
-@frozen
-public struct TransitionReader<Content: View>: View {
-	public typealias Proxy = TransitionReaderProxy
-
-	@usableFromInline
-	var content: (Proxy) -> Content
-
-	@State var proxy = Proxy(progress: 0, isTransitioning: false)
-
-	@inlinable
-	public init(
-		@ViewBuilder content: @escaping (Proxy) -> Content
-	) {
-		self.content = content
-	}
-
-	public var body: some View {
-		content(proxy)
-			.background(
-				TransitionReaderAdapter(
-					progress: $proxy.progress,
-					isTransitioning: $proxy.isTransitioning
-				)
-			)
-	}
-}
-
-private struct TransitionReaderAdapter: UIViewRepresentable {
+struct TransitionReaderAdapter: UIViewRepresentable {
 	var progress: Binding<CGFloat>
 	var isTransitioning: Binding<Bool>
 
@@ -103,9 +62,11 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 
 			for viewController in trackedViewControllers.allObjects {
 				viewController.swizzle_beginAppearanceTransition { [unowned self] in
+					debugPrint("beginAppearanceTransition")
 					transitionCoordinatorDidChange()
 				}
 				viewController.swizzle_endAppearanceTransition { [unowned self] in
+					debugPrint("endAppearanceTransition")
 					transitionCoordinatorDidChange()
 				}
 			}
@@ -114,38 +75,50 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 
 		@MainActor
 		private func transitionCoordinatorDidChange() {
-			if let presentingViewController = presentingViewController {
-				if let transitionCoordinator = presentingViewController.transitionCoordinator, displayLink == nil {
-					debugPrint("isInteractive: \(transitionCoordinator.isInteractive)")
-					if transitionCoordinator.isInteractive {
-						let displayLink = CADisplayLink(target: self, selector: #selector(onClockTick(displayLink:)))
-						displayLink.add(to: .current, forMode: .common)
-						self.displayLink = displayLink
-						self.transitionCoordinator = transitionCoordinator
-					} else {
-						transitionDidChange(transitionCoordinator)
-					}
-
-					transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
-						self?.transitionDidChange(ctx)
-					}
-				} else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
-					let isPresented = presentingViewController.isBeingPresented
-					let transaction = Transaction(animation: nil)
-					debugPrint("isPresented: \(isPresented) progress: \(isPresented ? 1 : 0)")
-					withTransaction(transaction) {
-						self.progress.wrappedValue = isPresented ? 1 : 0
-					}
-				}
-			} else {
+			guard let presentingViewController else {
 				displayLink?.invalidate()
-				progress.wrappedValue = 0
+				if progress.wrappedValue != 0 {
+					progress.wrappedValue = 0
+				}
+				if isTransitioning.wrappedValue {
+					isTransitioning.wrappedValue = false
+				}
+				return
+			}
+			isTransitioning.wrappedValue = presentingViewController.transitionCoordinator != nil
+			if let transitionCoordinator = presentingViewController.transitionCoordinator, displayLink == nil {
+				transitionCoordinator.animate(alongsideTransition: nil) { [weak self] ctx in
+					debugPrint("animate(alongsideTransition:)")
+					self?.isTransitioning.wrappedValue = false
+					self?.transitionDidChange(ctx)
+				}
+				if transitionCoordinator.isInteractive {
+					let displayLink = CADisplayLink(target: self, selector: #selector(onClockTick(displayLink:)))
+					displayLink.add(to: .current, forMode: .common)
+					self.displayLink = displayLink
+					self.transitionCoordinator = transitionCoordinator
+				} else {
+					transitionDidChange(transitionCoordinator)
+				}
+
+				transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+					self?.transitionDidChange(ctx)
+				}
+			} else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
+				let isPresented = presentingViewController.isBeingPresented
+				let transaction = Transaction(animation: nil)
+				debugPrint("isPresented: \(isPresented) progress: \(isPresented ? 1 : 0)")
+				withTransaction(transaction) {
+					guard self.progress.wrappedValue != (isPresented ? 1 : 0) else { return }
+					self.progress.wrappedValue = isPresented ? 1 : 0
+				}
 			}
 		}
 
 		@objc @MainActor
 		private func onClockTick(displayLink: CADisplayLink) {
 			if let transitionCoordinator = transitionCoordinator {
+				isTransitioning.wrappedValue = true
 				transitionDidChange(transitionCoordinator)
 			} else {
 				displayLink.invalidate()
@@ -163,12 +136,9 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 					: 1 - transitionCoordinator.percentComplete
 				var transaction = Transaction()
 				transaction.isContinuous = true
-				let isTransitioning = !transitionCoordinator.isCancelled
-					&& transitionCoordinator.percentComplete > 0
-					&& transitionCoordinator.percentComplete < 1
 				withTransaction(transaction) {
+					guard self.progress.wrappedValue != percentComplete else { return }
 					progress.wrappedValue = percentComplete
-					self.isTransitioning.wrappedValue = isTransitioning
 				}
 			} else {
 				let newValue: CGFloat = transitionCoordinator.isCancelled ? isPresenting ? 0 : 1 : isPresenting ? 1 : 0
@@ -180,12 +150,9 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 					transaction.animation = animation
 					transaction.disablesAnimations = false
 				}
-				let isTransitioning = transitionCoordinator.percentComplete > 0 && transitionCoordinator.percentComplete < 1
 				withTransaction(transaction) {
+					guard self.progress.wrappedValue != newValue else { return }
 					self.progress.wrappedValue = newValue
-					if self.isTransitioning.wrappedValue != isTransitioning {
-						self.isTransitioning.wrappedValue = isTransitioning
-					}
 				}
 			}
 		}
@@ -291,24 +258,45 @@ extension UIView.AnimationCurve {
 struct TransitionReaderParentView: View {
 	@State var path: [String] = []
 	@State var progress: CGFloat = 0
+	@State var isTransitioning: Bool = false
+	@State var isPresented: Bool = false
 
 	var body: some View {
 		NavigationStack(path: $path) {
 			VStack {
+				Button("Present") {
+					isPresented.toggle()
+				}
 				NavigationLink("Go to screen 1", value: "1")
 				NavigationLink("Go to screen 2", value: "2")
 				NavigationLink("Go to screen 3", value: "3")
 				NavigationLink("Go to screen 4", value: "4")
 			}.navigationDestination(for: String.self) { value in
-				TransitionReader { proxy in
-					Text("[\(proxy.progress)] This is screen number \(value)")
-						.background(proxy.isTransitioning ? Color.mint.opacity(proxy.progress) : Color.pink.opacity(proxy.progress))
-						.onChange(of: proxy.progress) { newValue in
-							progress = newValue
-						}
+				TransitionReader(progress: $progress, isTransitioning: $isTransitioning) { proxy in
+					Button(action: {}, label: {
+						Text("[\(proxy.progress)] This is screen number \(value)")
+					})
+					.background(proxy.isTransitioning ? Color.mint.opacity(proxy.progress) : Color.pink.opacity(proxy.progress))
 				}
 			}
+			.onChange(of: progress) { newValue in
+				debugPrint("\(newValue)")
+			}
+			.onChange(of: isTransitioning) { newValue in
+				debugPrint("isTransitioning: \(newValue)")
+			}
 			.background(Color.mint.gradient.opacity(progress))
+			.sheet(isPresented: $isPresented) {
+				TransitionReader(progress: $progress, isTransitioning: $isTransitioning) { proxy in
+					Button("Dismiss \(progress)") {
+						isPresented.toggle()
+					}
+					.background(isTransitioning ? Color.mint.opacity(progress) : Color.pink.opacity(progress))
+					.onChange(of: progress) { newValue in
+						debugPrint("\(newValue)")
+					}
+				}
+			}
 		}
 	}
 }
