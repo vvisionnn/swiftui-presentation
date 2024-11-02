@@ -81,10 +81,3 @@ extension UIViewController {
 		}
 	}
 }
-
-final class ObjCWeakBox<Value: AnyObject>: NSObject {
-	weak var value: Value?
-	init(value: Value?) {
-		self.value = value
-	}
-}
