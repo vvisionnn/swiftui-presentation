@@ -16,7 +16,6 @@ struct ParentView: View {
 			.foregroundStyle(Color.mint.gradient)
 			.ignoresSafeArea()
 			.onChange(of: isChild2Presented) { val in
-				debugPrint("asd \(isChild2Presented)")
 			}
 			.overlay(content: {
 				VStack {
@@ -49,7 +48,6 @@ struct ParentView: View {
 				ChildView()
 					.overlay {
 						Button(action: {
-							debugPrint("dismissing child1 and present child2")
 							withAnimation(.spring) {
 								isChild1Presented = false
 								isChild2Presented = true
@@ -57,7 +55,6 @@ struct ParentView: View {
 
 							// after a very quick action finished (mock running time 200ms)
 							DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-								debugPrint("dismissing child2")
 								withAnimation(.spring) {
 									isChild2Presented = false
 								}

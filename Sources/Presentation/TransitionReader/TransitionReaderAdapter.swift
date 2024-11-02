@@ -62,11 +62,9 @@ struct TransitionReaderAdapter: UIViewRepresentable {
 
 			for viewController in trackedViewControllers.allObjects {
 				viewController.swizzle_beginAppearanceTransition { [unowned self] in
-					debugPrint("beginAppearanceTransition")
 					transitionCoordinatorDidChange()
 				}
 				viewController.swizzle_endAppearanceTransition { [unowned self] in
-					debugPrint("endAppearanceTransition")
 					transitionCoordinatorDidChange()
 				}
 			}
@@ -88,7 +86,6 @@ struct TransitionReaderAdapter: UIViewRepresentable {
 			isTransitioning.wrappedValue = presentingViewController.transitionCoordinator != nil
 			if let transitionCoordinator = presentingViewController.transitionCoordinator, displayLink == nil {
 				transitionCoordinator.animate(alongsideTransition: nil) { [weak self] ctx in
-					debugPrint("animate(alongsideTransition:)")
 					self?.isTransitioning.wrappedValue = false
 					self?.transitionDidChange(ctx)
 				}
@@ -107,7 +104,6 @@ struct TransitionReaderAdapter: UIViewRepresentable {
 			} else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
 				let isPresented = presentingViewController.isBeingPresented
 				let transaction = Transaction(animation: nil)
-				debugPrint("isPresented: \(isPresented) progress: \(isPresented ? 1 : 0)")
 				withTransaction(transaction) {
 					guard self.progress.wrappedValue != (isPresented ? 1 : 0) else { return }
 					self.progress.wrappedValue = isPresented ? 1 : 0
@@ -280,10 +276,8 @@ struct TransitionReaderParentView: View {
 				}
 			}
 			.onChange(of: progress) { newValue in
-				debugPrint("\(newValue)")
 			}
 			.onChange(of: isTransitioning) { newValue in
-				debugPrint("isTransitioning: \(newValue)")
 			}
 			.background(Color.mint.gradient.opacity(progress))
 			.sheet(isPresented: $isPresented) {
@@ -293,7 +287,6 @@ struct TransitionReaderParentView: View {
 					}
 					.background(isTransitioning ? Color.mint.opacity(progress) : Color.pink.opacity(progress))
 					.onChange(of: progress) { newValue in
-						debugPrint("\(newValue)")
 					}
 				}
 			}
