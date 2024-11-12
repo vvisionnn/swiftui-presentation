@@ -142,7 +142,10 @@ struct TransitionReaderAdapter: UIViewRepresentable {
 				transaction.disablesAnimations = true
 				if transitionCoordinator.isAnimated {
 					let duration = transitionCoordinator.transitionDuration == 0 ? 0.35 : transitionCoordinator.transitionDuration
-					let animation = transitionCoordinator.completionCurve.toSwiftUI(duration: duration)
+					let percentComplete = isPresenting
+						? transitionCoordinator.percentComplete
+						: 1 - transitionCoordinator.percentComplete
+					let animation = transitionCoordinator.completionCurve.toSwiftUI(duration: duration * (1 - percentComplete))
 					transaction.animation = animation
 					transaction.disablesAnimations = false
 				}
@@ -245,7 +248,7 @@ extension UIView.AnimationCurve {
 		case .easeInOut:
 			return .easeInOut(duration: duration)
 		@unknown default:
-			return .default
+			return .spring
 		}
 	}
 }
