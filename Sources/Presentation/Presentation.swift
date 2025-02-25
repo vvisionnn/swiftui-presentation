@@ -18,7 +18,7 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 	func updateUIView(_ uiView: ViewControllerReader, context: Context) {
 		guard context.coordinator.presentingViewController != nil else { return }
 		context.coordinator.isPresented = $isPresented
-		context.coordinator.destination = destination
+		context.coordinator.destination = isPresented ? destination : context.coordinator.destination
 		context.coordinator.transition = transition
 		context.coordinator.presentationState.send(isPresented)
 	}
@@ -75,7 +75,7 @@ extension PresentationBridge {
 					return
 				case (false, true):
 					if let presentedViewController = await presentingViewController?.presentedViewController {
-						await presentedViewController.dismiss(animated: true)
+						await presentedViewController.dismissAsync(animated: true)
 					}
 					let presentedViewController = await UIHostingController(rootView: destination)
 					await MainActor.run {
@@ -87,11 +87,11 @@ extension PresentationBridge {
 						presentedViewController.view.backgroundColor = .clear
 					}
 					self.presentedViewController = presentedViewController
-					await presentingViewController?.present(presentedViewController, animated: true)
+					await presentingViewController?.presentAsync(presentedViewController, animated: true)
 				case (true, false):
 					guard presentedViewController != nil else { return }
 					defer { self.presentedViewController = nil }
-					await presentingViewController?.dismiss(animated: true)
+					await presentingViewController?.dismissAsync(animated: true)
 					await MainActor.run {
 						self.presentedViewController?.presentationDelegate = nil
 					}

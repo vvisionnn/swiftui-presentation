@@ -92,16 +92,26 @@ class NativeScaleTransition: UIPercentDrivenInteractiveTransition, UIViewControl
 	}
 }
 
-#if DEBUG && canImport(SwiftUI)
-import SwiftUI
-
+#if DEBUG
 struct ScaleParentView: View {
 	@State var isChild1Presented = false
 	@State var isChild2Presented = false
+	@State var item: Int? = nil
 
 	var body: some View {
 		VStack {
 			Text("Parent View")
+			Button("Item Presentation") {
+				withAnimation(.smooth) {
+					item = 1
+				}
+			}
+			Button("Item Presentation Fast Dismiss") {
+				item = 1
+				DispatchQueue.main.asyncAfter(deadline: .now() + 0.0001) {
+					item = nil
+				}
+			}
 			Button("Scale Presentation") {
 				withAnimation(.smooth) {
 					isChild1Presented = true
@@ -113,21 +123,34 @@ struct ScaleParentView: View {
 					isChild2Presented = true
 				}
 			}
+
+			Button("Scale Fast Dismiss") {
+				isChild1Presented = true
+				DispatchQueue.main.asyncAfter(deadline: .now() + 0.001) {
+					isChild1Presented = false
+				}
+			}
 		}
 		.presentation(
-			//			transition: .custom(
-//				options: .init(preferredPresentationBackgroundColor: .clear),
-//				ScaleTransition()
-//			),
-			isPresented: $isChild1Presented
+			isPresented: $isChild1Presented,
+			transition: .scale
 		) {
 			ScaleChildView()
 		}
 		.presentation(
-			//			transition: .card,
-			isPresented: $isChild2Presented
+			isPresented: $isChild2Presented,
+			transition: .scale
 		) {
 			ScaleChildView()
+		}
+		.presentation(
+			item: $item,
+			transition: .scale
+		) { item in
+			ScaleChildView()
+				.overlay(alignment: .top) {
+					Text("\(item)")
+				}
 		}
 	}
 }
@@ -159,7 +182,7 @@ struct ScaleChildView: View {
 	}
 }
 
-#Preview {
+#Preview(body: {
 	ScaleParentView()
-}
+})
 #endif
