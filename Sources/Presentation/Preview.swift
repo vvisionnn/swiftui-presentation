@@ -1,121 +1,167 @@
 #if DEBUG
 import SwiftUI
 
-struct ParentView: View {
-	@State private var isChild1Presented = true
-	@State private var isChild2Presented = false
-	@State private var isChild3Presented = false
+struct PresentationDemoView: View {
+	@State private var showSheet = false
+	@State private var showFullScreen = false
+	@State private var showScaled = false
+	@State private var showInteractive = false
+	@State private var selectedItem: DemoItem?
 
-	// The problem is, by design, view is following the state change
-	// so after we click the button, the child 1 should be dismiss
-	// and child 2 should be presented then dismiss
-	// but the behavior is, child 1 is dismissed, child 2 is presented
-	// NOTE: replace the `.presentation` with SwiftUI native `.sheet` there is no problem
 	var body: some View {
-		Rectangle()
-			.foregroundStyle(Color.mint.gradient)
-			.ignoresSafeArea()
-			.onChange(of: isChild2Presented) { val in
-			}
-			.overlay(content: {
-				VStack {
-					Button(action: {
-						withAnimation(.spring) {
-							isChild1Presented = true
-						}
-					}) {
-						Text("Present 1")
-					}
-
-					Button(action: {
-						withAnimation(.spring) {
-							isChild2Presented = true
-						}
-					}) {
-						Text("Present 2")
-					}
-
-					Button(action: {
-						withAnimation(.spring) {
-							isChild3Presented = true
-						}
-					}) {
-						Text("Present 3")
-					}
+		NavigationView {
+			List {
+				Section("Basic Transitions") {
+					Button("Present Sheet") { showSheet = true }
+					Button("Present Full Screen") { showFullScreen = true }
+					Button("Present Scaled") { showScaled = true }
+					Button("Present Interactive Dismiss") { showInteractive = true }
 				}
-			})
-			.presentation(isPresented: $isChild1Presented) {
-				ChildView()
-					.overlay {
-						Button(action: {
-							withAnimation(.spring) {
-								isChild1Presented = false
-								isChild2Presented = true
-							}
 
-							// after a very quick action finished (mock running time 200ms)
-							DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-								withAnimation(.spring) {
-									isChild2Presented = false
-								}
-							}
-						}) {
-							Text("Dismiss then present child2")
-								.foregroundStyle(Color.white)
-								.font(.system(.headline))
-						}
-					}
-			}
-			.presentation(isPresented: $isChild2Presented) {
-				ChildView()
-			}
-			.presentation(isPresented: $isChild3Presented, transition: .scale) {
-				ZStack {
-					Color.clear
-						.contentShape(Rectangle())
-						.ignoresSafeArea()
-						.onTapGesture {
-							withAnimation(.spring) {
-								isChild3Presented.toggle()
-							}
-						}
-					Rectangle()
-						.frame(width: 100, height: 100)
-						.overlay {
-							Button(action: {
-								withAnimation(.spring) {
-									isChild3Presented.toggle()
-								}
-							}) {
-								Text("Dismiss")
-									.foregroundStyle(Color.white)
-									.font(.system(.headline))
-							}
-						}
+				Section("Info") {
+					Text("This preview demonstrates various presentation styles and interactions using the custom .presentation modifier.")
 				}
 			}
+			.navigationTitle("Presentation Demo")
+		}
+		.presentation(isPresented: $showSheet) { // Default is .sheet
+			PresentedView(
+				title: "Sheet Presentation",
+				color: .mint,
+				dismissAction: { showSheet = false }
+			)
+		}
+		.presentation(isPresented: $showFullScreen, transition: .fullScreen) {
+			PresentedView(
+				title: "Full Screen Presentation",
+				color: .teal,
+				dismissAction: { showFullScreen = false }
+			) {
+				// Nested Presentation Example
+				NestedPresentationView()
+			}
+		}
+		.presentation(isPresented: $showScaled, transition: .scale) {
+			PresentedView(
+				title: "Scale Transition",
+				color: .cyan,
+				dismissAction: { showScaled = false }
+			)
+		}
+		.presentation(isPresented: $showInteractive, transition: .interactiveDismiss) {
+			// Interactive dismiss works by dragging down
+			PresentedView(
+				title: "Interactive Dismiss",
+				color: .blue,
+				dismissAction: { showInteractive = false } // Can still have a button
+			)
+			.overlay(alignment: .bottom) {
+				Text("Drag down to dismiss")
+					.padding()
+					.foregroundStyle(.white.opacity(0.7))
+			}
+		}
+		.presentation(item: $selectedItem) { item in
+			PresentedView(
+				title: "Item \(item.id)",
+				color: item.color,
+				dismissAction: { selectedItem = nil }
+			)
+		}
 	}
 }
 
-struct ChildView: View {
-	var timePublisher = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-	@State var currentTime: Date = .init()
+struct DemoItem: Identifiable {
+	let id: Int
+	let color: Color
+}
+
+struct PresentedView<Content: View>: View {
+	let title: String
+	let color: Color
+	var dismissAction: () -> Void
+	@ViewBuilder var additionalContent: Content
+
+	// State within the presented view
+	@State private var counter = 0
+
+	init(
+		title: String,
+		color: Color,
+		dismissAction: @escaping () -> Void,
+		@ViewBuilder additionalContent: () -> Content = { EmptyView() }
+	) {
+		self.title = title
+		self.color = color
+		self.dismissAction = dismissAction
+		self.additionalContent = additionalContent()
+	}
 
 	var body: some View {
-		Rectangle()
-			.foregroundStyle(Color.pink.gradient)
-			.ignoresSafeArea()
-			.onReceive(timePublisher) { _ in currentTime = Date() }
-			.overlay(alignment: .top) {
-				Text("Current time: \(currentTime.description)")
-					.foregroundStyle(Color.white)
-					.font(.system(.headline))
-					.padding(.top)
+		ZStack {
+			Rectangle()
+				.fill(color.gradient)
+				.ignoresSafeArea()
+
+			VStack(spacing: 20) {
+				Text(title)
+					.font(.largeTitle)
+					.foregroundStyle(.white)
+
+				Text("Counter: \(counter)")
+					.font(.title)
+					.foregroundStyle(.white)
+
+				Button("Increment Counter") {
+					counter += 1
+				}
+				.buttonStyle(.borderedProminent)
+				.tint(.white.opacity(0.5))
+
+				additionalContent // Add nested content here
+
+				Button("Dismiss") {
+					// Use animation matching the presentation if desired
+					withAnimation(.spring) {
+						dismissAction()
+					}
+				}
+				.buttonStyle(.bordered)
+				.tint(.white)
 			}
+			.padding()
+		}
+		// Example: Make the presented view react to presentation state if needed
+		// .onAppear { print("\(title) Appeared") }
+		// .onDisappear { print("\(title) Disappeared") }
+	}
+}
+
+struct NestedPresentationView: View {
+	@State private var showNestedSheet = false
+
+	var body: some View {
+		VStack {
+			Divider().background(.white.opacity(0.5))
+			Button("Present Nested Sheet") {
+				showNestedSheet = true
+			}
+			.buttonStyle(.bordered)
+			.tint(.white)
+		}
+		.padding(.top)
+		// Apply presentation modifier within the presented view
+		.presentation(isPresented: $showNestedSheet) {
+			PresentedView(
+				title: "Nested Sheet",
+				color: .purple,
+				dismissAction: { showNestedSheet = false }
+			)
+		}
 	}
 }
 
 #Preview {
-	ParentView()
+	PresentationDemoView()
 }
 #endif
