@@ -530,7 +530,8 @@ class InteractiveDismissPresentationController: UIPresentationController, UIGest
 		// Allow simultaneous recognition ONLY with scroll views inside the presented content
 		guard gestureRecognizer == panGesture,
 		      let scrollView = otherGestureRecognizer.view as? UIScrollView,
-		      let presentedView = presentedView
+		      let presentedView = presentedView,
+		      scrollView.contentOffset.y <= 0
 		else {
 			return false
 		}
@@ -574,7 +575,7 @@ class InteractiveDismissPresentationController: UIPresentationController, UIGest
 
 class DismissAnimator: NSObject, UIViewControllerAnimatedTransitioning {
 	// Increased duration for a slower dismissal
-	let animationDuration: TimeInterval = 0.3 // Was 0.3
+	let animationDuration: TimeInterval = 0.35 // Was 0.3
 
 	func transitionDuration(using transitionContext: UIViewControllerContextTransitioning?) -> TimeInterval {
 		animationDuration

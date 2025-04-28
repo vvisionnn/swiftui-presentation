@@ -98,38 +98,54 @@ struct PresentedView<Content: View>: View {
 	}
 
 	var body: some View {
-		ZStack {
-			Rectangle()
-				.fill(color.gradient)
-				.ignoresSafeArea()
+		NavigationStack {
+			ScrollView {
+				LazyVStack {
+					ZStack {
+						Rectangle()
+							.fill(color.gradient)
+							.ignoresSafeArea()
 
-			VStack(spacing: 20) {
-				Text(title)
-					.font(.largeTitle)
-					.foregroundStyle(.white)
+						VStack(spacing: 20) {
+							Text(title)
+								.font(.largeTitle)
+								.foregroundStyle(.white)
 
-				Text("Counter: \(counter)")
-					.font(.title)
-					.foregroundStyle(.white)
+							Text("Counter: \(counter)")
+								.font(.title)
+								.foregroundStyle(.white)
 
-				Button("Increment Counter") {
-					counter += 1
-				}
-				.buttonStyle(.borderedProminent)
-				.tint(.white.opacity(0.5))
+							Button("Increment Counter") {
+								counter += 1
+							}
+							.buttonStyle(.borderedProminent)
+							.tint(.white.opacity(0.5))
 
-				additionalContent // Add nested content here
+							additionalContent // Add nested content here
 
-				Button("Dismiss") {
-					// Use animation matching the presentation if desired
-					withAnimation(.spring) {
-						dismissAction()
+							Button("Dismiss") {
+								// Use animation matching the presentation if desired
+								withAnimation(.spring) {
+									dismissAction()
+								}
+							}
+							.buttonStyle(.bordered)
+							.tint(.white)
+						}
+						.padding()
+					}
+
+					ForEach(0 ..< 100, id: \.self) { index in
+						Text("Item \(index)")
+							.padding()
+							.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+							.onTapGesture {
+								// Example of selecting an item
+								print("Selected item \(index)")
+							}
 					}
 				}
-				.buttonStyle(.bordered)
-				.tint(.white)
 			}
-			.padding()
 		}
 		// Example: Make the presented view react to presentation state if needed
 		// .onAppear { print("\(title) Appeared") }
