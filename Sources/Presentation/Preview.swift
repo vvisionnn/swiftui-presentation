@@ -49,16 +49,20 @@ struct PresentationDemoView: View {
 			)
 		}
 		.presentation(isPresented: $showInteractive, transition: .interactiveDismiss) {
-			// Interactive dismiss works by dragging down
-			PresentedView(
-				title: "Interactive Dismiss",
-				color: .blue,
-				dismissAction: { showInteractive = false } // Can still have a button
-			)
-			.overlay(alignment: .bottom) {
-				Text("Drag down to dismiss")
-					.padding()
-					.foregroundStyle(.white.opacity(0.7))
+			NavigationStack {
+				// Interactive dismiss works by dragging down
+				PresentedView(
+					title: "Interactive Dismiss",
+					color: .blue,
+					dismissAction: { showInteractive = false } // Can still have a button
+				)
+				.overlay(alignment: .bottom) {
+					Text("Drag down to dismiss")
+						.padding()
+						.foregroundStyle(.white.opacity(0.7))
+				}
+				.navigationTitle("Interactive")
+				.navigationBarTitleDisplayMode(.inline)
 			}
 		}
 		.presentation(item: $selectedItem) { item in
