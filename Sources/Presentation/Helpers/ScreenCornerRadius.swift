@@ -6,7 +6,7 @@ extension UIScreen {
 		return components.reversed().joined()
 	}()
 
-	public var displayCornerRadius: CGFloat {
+	var displayCornerRadius: CGFloat {
 		value(forKey: Self.cornerRadiusKey) as? CGFloat ?? 0
 	}
 }
