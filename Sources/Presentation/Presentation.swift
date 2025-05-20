@@ -80,10 +80,6 @@ extension PresentationBridge {
 					let presentedViewController = await UIHostingController(rootView: destination)
 					await MainActor.run {
 						switch self.transition {
-						case .sheet:
-							presentedViewController.modalPresentationStyle = .pageSheet
-						case .fullScreen:
-							presentedViewController.modalPresentationStyle = .overFullScreen
 						case let .custom(transitioningDelegate):
 							presentedViewController.modalPresentationStyle = self.transition.modalPresentationStyle
 							presentedViewController.transitioningDelegate = transitioningDelegate

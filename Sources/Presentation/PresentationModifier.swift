@@ -27,7 +27,7 @@ extension View {
 	@_disfavoredOverload
 	public func presentation<T: Sendable, Destination: View>(
 		item: Binding<T?>,
-		transition: TransitionType = .sheet,
+		transition: TransitionType = .interactiveFullSheet,
 		@ViewBuilder destination: (T) -> Destination
 	) -> some View {
 		presentation(
@@ -44,7 +44,7 @@ extension View {
 
 	public func presentation<Destination: View>(
 		isPresented: Binding<Bool>,
-		transition: TransitionType = .sheet,
+		transition: TransitionType = .interactiveFullSheet,
 		@ViewBuilder destination: () -> Destination
 	) -> some View {
 		modifier(

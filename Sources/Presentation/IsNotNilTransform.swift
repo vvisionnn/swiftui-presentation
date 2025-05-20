@@ -13,7 +13,6 @@ extension Optional {
 	var isNotNone: Bool {
 		get { self != nil }
 		set {
-			debugPrint("called")
 			if !newValue {
 				self = .none
 			}

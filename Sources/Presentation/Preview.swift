@@ -2,8 +2,6 @@
 import SwiftUI
 
 struct PresentationDemoView: View {
-	@State private var showSheet = false
-	@State private var showFullScreen = false
 	@State private var showScaled = false
 	@State private var showInteractive = false
 	@State private var selectedItem: DemoItem?
@@ -12,8 +10,6 @@ struct PresentationDemoView: View {
 		NavigationView {
 			List {
 				Section("Basic Transitions") {
-					Button("Present Sheet") { showSheet = true }
-					Button("Present Full Screen") { showFullScreen = true }
 					Button("Present Scaled") { showScaled = true }
 					Button("Present Interactive Dismiss") { showInteractive = true }
 					Button("Present with Item") { selectedItem = DemoItem(id: 1, color: .orange) }
@@ -24,23 +20,6 @@ struct PresentationDemoView: View {
 				}
 			}
 			.navigationTitle("Presentation Demo")
-		}
-		.presentation(isPresented: $showSheet) { // Default is .sheet
-			PresentedView(
-				title: "Sheet Presentation",
-				color: .mint,
-				dismissAction: { showSheet = false }
-			)
-		}
-		.presentation(isPresented: $showFullScreen, transition: .fullScreen) {
-			PresentedView(
-				title: "Full Screen Presentation",
-				color: .teal,
-				dismissAction: { showFullScreen = false }
-			) {
-				// Nested Presentation Example
-				NestedPresentationView()
-			}
 		}
 		.presentation(isPresented: $showScaled, transition: .scale) {
 			PresentedView(
