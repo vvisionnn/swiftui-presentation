@@ -15,4 +15,22 @@ public struct TransitionReaderProxy {
 		self.isTransitioning = isTransitioning
 	}
 }
+
+@MainActor private var transitionReaderAnimationKey: UInt = 0
+
+extension UIViewController {
+	@MainActor
+	var transitionReaderAnimation: Animation? {
+		get {
+			if let box = objc_getAssociatedObject(self, &transitionReaderAnimationKey) as? ObjCBox<Animation?> {
+				return box.value
+			}
+			return nil
+		}
+		set {
+			let box = newValue.map { ObjCBox<Animation?>(value: $0) }
+			objc_setAssociatedObject(self, &transitionReaderAnimationKey, box, .OBJC_ASSOCIATION_RETAIN)
+		}
+	}
+}
 #endif

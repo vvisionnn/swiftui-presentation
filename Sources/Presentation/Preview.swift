@@ -48,7 +48,7 @@ struct PresentationDemoView: View {
 				dismissAction: { showScaled = false }
 			)
 		}
-		.presentation(isPresented: $showInteractive, transition: .interactiveDismiss) {
+		.presentation(isPresented: $showInteractive, transition: .interactiveFullSheet) {
 			NavigationStack {
 				// Interactive dismiss works by dragging down
 				PresentedView(

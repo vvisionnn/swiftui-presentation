@@ -10,3 +10,9 @@ func frictionCurve(
 	}
 	return (1.0 - (1.0 / ((value * coefficient / distance) + 1.0))) * distance
 }
+
+extension CGFloat {
+	func rounded(scale: CGFloat) -> CGFloat {
+		(self * scale).rounded() / scale
+	}
+}

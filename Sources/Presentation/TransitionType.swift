@@ -27,5 +27,5 @@ extension TransitionType {
 
 extension TransitionType {
 	@MainActor public static let scale: Self = .custom(NativeScaleTransitioningDelegate())
-	@MainActor public static let interactiveDismiss: Self = .custom(InteractiveDismissTransitioningDelegate())
+	@MainActor public static let interactiveFullSheet: Self = .custom(SlideTransitioningDelegate())
 }
