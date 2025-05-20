@@ -144,7 +144,7 @@ struct PresentationDemoView: View {
 			transition: .interactiveFullSheet
 		) { editableItem in
 			EditItemView(item: editableItem, dismissAction: {
-				self.lastEditableItem = editableItem
+				lastEditableItem = editableItem
 				self.editableItem = nil
 			})
 		}
@@ -201,6 +201,7 @@ struct PresentedView<Content: View>: View {
 	let color: Color
 	var dismissAction: () -> Void
 	@ViewBuilder var additionalContent: Content
+	@State var isPresented: Bool = false
 
 	// State within the presented view
 	@State private var counter = 0
@@ -220,6 +221,13 @@ struct PresentedView<Content: View>: View {
 	var body: some View {
 		NavigationStack {
 			ScrollView {
+				Button("Present Nested Sheet") {
+					isPresented = true
+				}
+				.sheet(isPresented: $isPresented) {
+					NestedPresentationView()
+				}
+
 				LazyVStack {
 					ZStack {
 						Rectangle()

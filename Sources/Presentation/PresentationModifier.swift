@@ -4,9 +4,13 @@ import SwiftUI
 public struct PresentationModifier<Destination: View>: ViewModifier {
 	var isPresented: Binding<Bool>
 	var transition: TransitionType
-	var destination: Destination
+	var destination: () -> Destination
 
-	public init(isPresented: Binding<Bool>, transition: TransitionType, destination: Destination) {
+	public init(
+		isPresented: Binding<Bool>,
+		transition: TransitionType,
+		@ViewBuilder destination: @escaping () -> Destination
+	) {
 		self.isPresented = isPresented
 		self.destination = destination
 		self.transition = transition
@@ -28,7 +32,7 @@ extension View {
 	public func presentation<T: Sendable, Destination: View>(
 		item: Binding<T?>,
 		transition: TransitionType = .interactiveFullSheet,
-		@ViewBuilder destination: (T) -> Destination
+		@ViewBuilder destination: @escaping (T) -> Destination
 	) -> some View {
 		presentation(
 			isPresented: item.isNotNil(),
@@ -45,13 +49,13 @@ extension View {
 	public func presentation<Destination: View>(
 		isPresented: Binding<Bool>,
 		transition: TransitionType = .interactiveFullSheet,
-		@ViewBuilder destination: () -> Destination
+		@ViewBuilder destination: @escaping () -> Destination
 	) -> some View {
 		modifier(
 			PresentationModifier(
 				isPresented: isPresented,
 				transition: transition,
-				destination: destination()
+				destination: destination
 			)
 		)
 	}

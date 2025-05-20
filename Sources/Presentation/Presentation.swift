@@ -1,11 +1,12 @@
 import Combine
+import PresentationShim
 import SwiftUI
 
 struct PresentationBridge<Destination: View>: UIViewRepresentable {
 	@WeakState var presentingViewController: UIViewController?
 	@Binding var isPresented: Bool
 	var transition: TransitionType
-	var destination: Destination
+	var destination: () -> Destination
 
 	func makeUIView(context: Context) -> ViewControllerReader {
 		let coordinator = context.coordinator
@@ -21,6 +22,7 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 		context.coordinator.destination = isPresented ? destination : context.coordinator.destination
 		context.coordinator.transition = transition
 		context.coordinator.presentationState.send(isPresented)
+		context.coordinator.updatePresentedViewController()
 	}
 
 	func makeCoordinator() -> Coordinator {
@@ -35,21 +37,22 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 extension PresentationBridge {
 	// TODO: Sendable conformances
 	// TODO: add transaction support instead of constant animation
-	class Coordinator: NSObject, UIViewControllerPresentationDelegate, @unchecked Sendable {
+	class Coordinator: NSObject, @unchecked Sendable {
 		weak var presentingViewController: UIViewController?
 		let presentationState: CurrentValueSubject<Bool, Never> = .init(false)
 		private var subscriptions: Set<AnyCancellable> = .init()
 		private let presentationQueue: FIFOQueue = .init(priority: .userInitiated)
 		private var presentedViewController: UIViewController?
-		var destination: Destination
+		var destination: () -> Destination
 		var isPresented: Binding<Bool>
 		var transition: TransitionType
 
 		deinit { subscriptions.forEach { $0.cancel() } }
+
 		public init(
 			isPresented: Binding<Bool>,
 			transition: TransitionType,
-			destination: Destination
+			@ViewBuilder destination: @escaping () -> Destination
 		) {
 			self.isPresented = isPresented
 			self.transition = transition
@@ -77,13 +80,24 @@ extension PresentationBridge {
 					if let presentedViewController = await presentingViewController?.presentedViewController {
 						await presentedViewController.dismissAsync(animated: true)
 					}
-					let presentedViewController = await UIHostingController(rootView: destination)
+					let presentedViewController = await UIHostingController(rootView: destination())
 					await MainActor.run {
 						switch self.transition {
 						case let .custom(transitioningDelegate):
 							presentedViewController.modalPresentationStyle = self.transition.modalPresentationStyle
 							presentedViewController.transitioningDelegate = transitioningDelegate
-							presentedViewController.presentationDelegate = self
+							presentedViewController._UIKitNavigation_onDismiss = {
+								defer {
+									// NOTE: set the presentedViewController to nil to avoid calling dismiss twice
+									// this is necessary or will break the presentation stack
+									self.presentedViewController = nil
+								}
+								var transaction = Transaction()
+								transaction.disablesAnimations = true
+								withTransaction(transaction) {
+									self.isPresented.wrappedValue = false
+								}
+							}
 						}
 						presentedViewController.view.backgroundColor = .clear
 					}
@@ -94,24 +108,16 @@ extension PresentationBridge {
 					defer { self.presentedViewController = nil }
 					await presentingViewController?.dismissAsync(animated: true)
 					await MainActor.run {
-						self.presentedViewController?.presentationDelegate = nil
+						self.presentedViewController?._UIKitNavigation_onDismiss = nil
 					}
 				}
 			}
 		}
 
-		func viewControllerDidDismiss(_ presentingViewController: UIViewController?, animated: Bool) {
-			var transaction = Transaction()
-			transaction.disablesAnimations = true
-			withTransaction(transaction) {
-				self.isPresented.wrappedValue = false
-			}
-
-			// Dismiss already handled by the presentation controller below
-			if let presentingViewController {
-				// presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: animated)
-				presentingViewController.fixSwiftUIHitTesting()
-			}
+		func updatePresentedViewController() {
+			guard let presentedViewController = presentedViewController as? UIHostingController<Destination>
+			else { return }
+			presentedViewController.rootView = destination()
 		}
 	}
 }
