@@ -51,18 +51,51 @@ struct PresentationDemoView: View {
 		.presentation(isPresented: $showInteractive, transition: .interactiveFullSheet) {
 			NavigationStack {
 				// Interactive dismiss works by dragging down
-				PresentedView(
-					title: "Interactive Dismiss",
-					color: .blue,
-					dismissAction: { showInteractive = false } // Can still have a button
-				)
+				ScrollView {
+					VStack(spacing: 20) {
+						Text("Interactive Content")
+							.font(.largeTitle)
+							.padding(.top, 50)
+
+						ForEach(0 ..< 20) { i in
+							Text("Scrollable Item \(i)")
+								.padding()
+								.frame(maxWidth: .infinity)
+								.background(Color.blue.opacity(0.1 * Double(i % 5 + 1)), in: RoundedRectangle(cornerRadius: 8))
+						}
+
+						Button(action: {
+							showInteractive = false
+						}) {
+							Text("Dismiss by Button")
+								.padding()
+								.frame(maxWidth: .infinity)
+								.background(Color.blue.opacity(0.8))
+								.foregroundStyle(Color.white)
+								.clipShape(RoundedRectangle(cornerRadius: 10))
+						}
+						.padding(.horizontal)
+					}
+					.padding()
+				}
+				.background(Color.blue.gradient.opacity(0.3))
+				.ignoresSafeArea(edges: .bottom) // Allow content to go under home indicator for full sheet feel
 				.overlay(alignment: .bottom) {
 					Text("Drag down to dismiss")
 						.padding()
-						.foregroundStyle(.white.opacity(0.7))
+						.foregroundStyle(.secondary)
+						.frame(maxWidth: .infinity)
+						.background(.ultraThinMaterial)
 				}
 				.navigationTitle("Interactive")
 				.navigationBarTitleDisplayMode(.inline)
+				.toolbar { // Example of adding a toolbar item, common in sheets
+					ToolbarItem(placement: .confirmationAction) {
+						Button("Done") {
+							showInteractive = false
+						}
+					}
+				}
 			}
 		}
 		.presentation(item: $selectedItem) { item in

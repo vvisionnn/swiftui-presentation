@@ -117,6 +117,8 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
 				frame: frame
 			)
 			presented.view.layer.cornerRadius = fromCornerRadius
+			presented.view.layer.cornerCurve = .continuous
+			presented.view.layer.masksToBounds = true
 		} else {
 			#if !targetEnvironment(macCatalyst)
 			if isScaleEnabled {
