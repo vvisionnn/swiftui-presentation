@@ -24,12 +24,16 @@ public struct PresentationModifier<Destination: View>: ViewModifier {
 }
 
 extension View {
+	@_disfavoredOverload
 	public func presentation<T: Sendable, Destination: View>(
 		item: Binding<T?>,
 		transition: TransitionType = .sheet,
 		@ViewBuilder destination: (T) -> Destination
 	) -> some View {
-		presentation(isPresented: item.isNotNil(), transition: transition) {
+		presentation(
+			isPresented: item.isNotNil(),
+			transition: transition
+		) {
 			if let val = item.wrappedValue {
 				destination(returningLastNonNilValue({ item.wrappedValue }, default: val)())
 			} else {

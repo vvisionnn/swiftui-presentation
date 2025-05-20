@@ -16,6 +16,7 @@ struct PresentationDemoView: View {
 					Button("Present Full Screen") { showFullScreen = true }
 					Button("Present Scaled") { showScaled = true }
 					Button("Present Interactive Dismiss") { showInteractive = true }
+					Button("Present with Item") { selectedItem = DemoItem(id: 1, color: .orange) }
 				}
 
 				Section("Info") {
@@ -48,7 +49,10 @@ struct PresentationDemoView: View {
 				dismissAction: { showScaled = false }
 			)
 		}
-		.presentation(isPresented: $showInteractive, transition: .interactiveFullSheet) {
+		.presentation(
+			isPresented: $showInteractive,
+			transition: .interactiveFullSheet
+		) {
 			NavigationStack {
 				// Interactive dismiss works by dragging down
 				ScrollView {
@@ -98,7 +102,10 @@ struct PresentationDemoView: View {
 				}
 			}
 		}
-		.presentation(item: $selectedItem) { item in
+		.presentation(
+			item: $selectedItem,
+			transition: .interactiveFullSheet
+		) { item in
 			PresentedView(
 				title: "Item \(item.id)",
 				color: item.color,
