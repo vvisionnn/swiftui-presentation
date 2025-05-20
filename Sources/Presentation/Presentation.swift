@@ -1,5 +1,4 @@
 import Combine
-import PresentationShim
 import SwiftUI
 
 struct PresentationBridge<Destination: View>: UIViewRepresentable {
@@ -37,7 +36,7 @@ struct PresentationBridge<Destination: View>: UIViewRepresentable {
 extension PresentationBridge {
 	// TODO: Sendable conformances
 	// TODO: add transaction support instead of constant animation
-	class Coordinator: NSObject, @unchecked Sendable {
+	class Coordinator: NSObject, UIViewControllerPresentationDelegate, @unchecked Sendable {
 		weak var presentingViewController: UIViewController?
 		let presentationState: CurrentValueSubject<Bool, Never> = .init(false)
 		private var subscriptions: Set<AnyCancellable> = .init()
@@ -86,18 +85,7 @@ extension PresentationBridge {
 						case let .custom(transitioningDelegate):
 							presentedViewController.modalPresentationStyle = self.transition.modalPresentationStyle
 							presentedViewController.transitioningDelegate = transitioningDelegate
-							presentedViewController._UIKitNavigation_onDismiss = {
-								defer {
-									// NOTE: set the presentedViewController to nil to avoid calling dismiss twice
-									// this is necessary or will break the presentation stack
-									self.presentedViewController = nil
-								}
-								var transaction = Transaction()
-								transaction.disablesAnimations = true
-								withTransaction(transaction) {
-									self.isPresented.wrappedValue = false
-								}
-							}
+							presentedViewController.presentationDelegate = self
 						}
 						presentedViewController.view.backgroundColor = .clear
 					}
@@ -108,7 +96,7 @@ extension PresentationBridge {
 					defer { self.presentedViewController = nil }
 					await presentingViewController?.dismissAsync(animated: true)
 					await MainActor.run {
-						self.presentedViewController?._UIKitNavigation_onDismiss = nil
+						self.presentedViewController?.presentationDelegate = nil
 					}
 				}
 			}
@@ -118,6 +106,22 @@ extension PresentationBridge {
 			guard let presentedViewController = presentedViewController as? UIHostingController<Destination>
 			else { return }
 			presentedViewController.rootView = destination()
+		}
+
+		func viewControllerDidDismiss(_ presentingViewController: UIViewController?, animated: Bool) {
+			defer { self.presentedViewController = nil }
+			guard self.presentedViewController != nil else { return }
+			var transaction = Transaction()
+			transaction.disablesAnimations = true
+			withTransaction(transaction) {
+				self.isPresented.wrappedValue = false
+			}
+			
+			// Dismiss already handled by the presentation controller below
+			if let presentingViewController {
+				// presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: animated)
+				presentingViewController.fixSwiftUIHitTesting()
+			}
 		}
 	}
 }

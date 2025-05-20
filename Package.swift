@@ -13,13 +13,7 @@ let package = Package(
 		),
 	],
 	targets: [
-		.target(
-			name: "Presentation",
-			dependencies: [
-				.target(name: "PresentationShim"),
-			]
-		),
-		.target(name: "PresentationShim"),
+		.target(name: "Presentation"),
 		.testTarget(
 			name: "PresentationTests",
 			dependencies: ["Presentation"]
