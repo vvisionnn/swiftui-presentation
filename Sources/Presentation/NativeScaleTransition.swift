@@ -73,6 +73,10 @@ class NativeScaleTransition: UIPercentDrivenInteractiveTransition, UIViewControl
 			toView.rightAnchor.constraint(equalTo: transitionContext.containerView.rightAnchor),
 		])
 
+		FrameRateRequest
+			.maxFrameRate(duration: transitionDuration)
+			.perform()
+
 		UIView.animate(
 			withDuration: transitionDuration,
 			delay: .zero,

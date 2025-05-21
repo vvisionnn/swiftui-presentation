@@ -27,3 +27,12 @@ public class FrameRateRequest {
 
 	@objc private func dummyFunction() {}
 }
+
+extension FrameRateRequest {
+	static func maxFrameRate(duration: Double) -> FrameRateRequest {
+		FrameRateRequest(
+			preferredFrameRate: Float(UIScreen.main.maximumFramesPerSecond),
+			duration: duration
+		)
+	}
+}

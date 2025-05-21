@@ -54,11 +54,9 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
 		}
 		animator.startAnimation(afterDelay: delay)
 		DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-			FrameRateRequest(
-				preferredFrameRate: Float(UIScreen.main.maximumFramesPerSecond),
-				duration: animator.duration
-			)
-			.perform()
+			FrameRateRequest
+				.maxFrameRate(duration: animator.duration)
+				.perform()
 		}
 
 		if !transitionContext.isAnimated {
