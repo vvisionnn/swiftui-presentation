@@ -179,6 +179,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 		guard let presentedView else { return }
 		let scrollView = gestureRecognizer.view as? UIScrollView ?? trackingScrollView
 		let gestureTranslation = gestureRecognizer.translation(in: presentedView)
+		scrollView?.isScrollEnabled = gestureTranslation.y == 0
 		let delta = CGPoint(
 			x: gestureTranslation.x - lastTranslation.x,
 			y: gestureTranslation.y - lastTranslation.y
@@ -385,7 +386,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 		delta: CGPoint,
 		velocity: CGPoint
 	) -> Bool {
-		let shouldBegin = dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: velocity)
+		let shouldBegin = dismissalTransitionShouldBegin(
+			translation: translation,
+			delta: delta,
+			velocity: velocity
+		)
 		if prefersInteractiveDismissal, shouldBegin {
 			return panGesture.state != .began && panGesture.state != .changed
 		}
@@ -393,6 +398,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 	}
 
 	private func panGestureDidEnd() {
+		trackingScrollView?.isScrollEnabled = true
 		translationOffset = .zero
 		lastTranslation = .zero
 		trackingScrollView = nil
@@ -455,27 +461,33 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
 	// MARK: - UIGestureRecognizerDelegate
 
+	public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+		guard let trackingScrollView else { return true }
+		return abs(trackingScrollView.panGestureRecognizer.translation(in: gestureRecognizer.view).x) <= 1
+			&& trackingScrollView.panGestureRecognizer.translation(in: gestureRecognizer.view).y >= 1
+			&& -trackingScrollView.contentOffset.y >= trackingScrollView.adjustedContentInset.top
+	}
+
 	open func gestureRecognizer(
 		_ gestureRecognizer: UIGestureRecognizer,
 		shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
 	) -> Bool {
-		otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+		if trackingScrollView == nil,
+		   otherGestureRecognizer.state != .failed,
+		   otherGestureRecognizer.state != .cancelled,
+		   let scrollView = otherGestureRecognizer.view as? UIScrollView,
+		   otherGestureRecognizer.isSimultaneousWithTransition {
+			trackingScrollView = scrollView
+		}
+		return otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
 	}
 
 	open func gestureRecognizer(
 		_ gestureRecognizer: UIGestureRecognizer,
 		shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
 	) -> Bool {
-		if trackingScrollView == nil,
-		   otherGestureRecognizer.state != .failed,
-		   otherGestureRecognizer.state != .cancelled,
-		   let scrollView = otherGestureRecognizer.view as? UIScrollView {
-			guard otherGestureRecognizer.isSimultaneousWithTransition else {
-				// Cancel
-				gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
-				return true
-			}
-			trackingScrollView = scrollView
+		func updateTrackingScrollView() {
+			guard let scrollView = trackingScrollView else { return }
 			translationOffset = scrollView.contentOffset
 			if edges.contains(.bottom) || edges.contains(.top) {
 				translationOffset.y += scrollView.adjustedContentInset.top
@@ -487,9 +499,26 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 			} else if edges.contains(.trailing) {
 				translationOffset.x += scrollView.adjustedContentInset.right
 			}
+		}
+		if trackingScrollView == nil,
+		   otherGestureRecognizer.state != .failed,
+		   otherGestureRecognizer.state != .cancelled,
+		   let scrollView = otherGestureRecognizer.view as? UIScrollView {
+			guard otherGestureRecognizer.isSimultaneousWithTransition else {
+				// Cancel
+				gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
+				return true
+			}
+			trackingScrollView = scrollView
+			updateTrackingScrollView()
+			return true
+		} else if trackingScrollView != nil {
+			updateTrackingScrollView()
 			return true
 		}
 		return trackingScrollView != nil
+			&& !(trackingScrollView?.isDragging ?? false)
+			&& !(trackingScrollView?.isDecelerating ?? false)
 	}
 }
 
@@ -521,6 +550,12 @@ extension UIGestureRecognizer {
 			return false
 		}
 		return self is UIPanGestureRecognizer
+	}
+}
+
+extension UIScrollView {
+	var isScrolling: Bool {
+		isDragging && !isDecelerating || isTracking
 	}
 }
 #endif

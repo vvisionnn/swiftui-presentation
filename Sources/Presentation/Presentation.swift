@@ -110,13 +110,13 @@ extension PresentationBridge {
 
 		func viewControllerDidDismiss(_ presentingViewController: UIViewController?, animated: Bool) {
 			defer { self.presentedViewController = nil }
-			guard self.presentedViewController != nil else { return }
+			guard presentedViewController != nil else { return }
 			var transaction = Transaction()
 			transaction.disablesAnimations = true
 			withTransaction(transaction) {
 				self.isPresented.wrappedValue = false
 			}
-			
+
 			// Dismiss already handled by the presentation controller below
 			if let presentingViewController {
 				// presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: animated)

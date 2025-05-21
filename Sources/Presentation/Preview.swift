@@ -8,6 +8,7 @@ struct PresentationDemoView: View {
 	@State private var showItemGrid = false
 	@State private var editableItem: EditableDemoItem? = nil
 	@State private var lastEditableItem: EditableDemoItem? = nil
+	@State private var showPageView = false
 
 	var body: some View {
 		NavigationView {
@@ -44,6 +45,7 @@ struct PresentationDemoView: View {
 					Button("Present Scaled") { showScaled = true }
 					Button("Present Interactive Dismiss") { showInteractive = true }
 					Button("Present with Item") { selectedItem = DemoItem.samples[0] }
+					Button("Present Page View") { showPageView = true }
 				}
 
 				Section("Complex Examples") {
@@ -147,6 +149,12 @@ struct PresentationDemoView: View {
 				lastEditableItem = editableItem
 				self.editableItem = nil
 			})
+		}
+		.presentation(
+			isPresented: $showPageView,
+			transition: .interactiveFullSheet
+		) {
+			PageView(dismissAction: { showPageView = false })
 		}
 	}
 }
@@ -652,6 +660,131 @@ struct EditItemView: View {
 			}
 		}
 	}
+}
+
+struct PageView: View {
+	@State private var currentPage = 0
+	let dismissAction: () -> Void
+
+	let pages = [
+		PageContent(
+			title: "Welcome to Page View",
+			description: "Swipe left to explore our features",
+			icon: "hand.wave.fill",
+			color: .blue
+		),
+		PageContent(
+			title: "Interactive Interface",
+			description: "Our app provides an intuitive and responsive experience",
+			icon: "hand.tap.fill",
+			color: .purple
+		),
+		PageContent(
+			title: "Stay Organized",
+			description: "Keep track of all your important tasks and events",
+			icon: "list.bullet.clipboard",
+			color: .green
+		),
+		PageContent(
+			title: "Get Started",
+			description: "Sign up now to begin your journey",
+			icon: "arrow.right.circle.fill",
+			color: .orange
+		),
+	]
+
+	var body: some View {
+		NavigationStack {
+			TabView(selection: $currentPage) {
+				ForEach(0 ..< pages.count, id: \.self) { index in
+					pageView(for: pages[index])
+						.tag(index)
+				}
+			}
+			.tabViewStyle(.page)
+			.indexViewStyle(.page(backgroundDisplayMode: .always))
+			.navigationTitle("Page \(currentPage + 1) of \(pages.count)")
+			.navigationBarTitleDisplayMode(.inline)
+			.toolbar {
+				ToolbarItem(placement: .navigationBarTrailing) {
+					Button("Close") {
+						dismissAction()
+					}
+				}
+
+				ToolbarItem(placement: .navigationBarLeading) {
+					HStack {
+						if currentPage > 0 {
+							Button("Previous") {
+								withAnimation {
+									currentPage -= 1
+								}
+							}
+						}
+
+						if currentPage < pages.count - 1 {
+							Spacer()
+							Button("Next") {
+								withAnimation {
+									currentPage += 1
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	@ViewBuilder
+	private func pageView(for content: PageContent) -> some View {
+		VStack(spacing: 40) {
+			Spacer()
+
+			Image(systemName: content.icon)
+				.font(.system(size: 100))
+				.foregroundStyle(content.color)
+			// .symbolEffect(.bounce, options: .repeating)
+
+			Text(content.title)
+				.font(.largeTitle)
+				.bold()
+				.multilineTextAlignment(.center)
+
+			Text(content.description)
+				.font(.title3)
+				.foregroundStyle(.secondary)
+				.multilineTextAlignment(.center)
+				.padding(.horizontal, 40)
+
+			Spacer()
+			Spacer()
+
+			if currentPage == pages.count - 1 {
+				Button(action: {
+					dismissAction()
+				}) {
+					Text("Get Started")
+						.bold()
+						.padding()
+						.frame(maxWidth: .infinity)
+						.background(content.color)
+						.foregroundStyle(.white)
+						.clipShape(RoundedRectangle(cornerRadius: 14))
+				}
+				.padding(.horizontal, 40)
+			}
+		}
+		.background(content.color.opacity(0.1))
+		.animation(.spring, value: currentPage)
+	}
+}
+
+struct PageContent {
+	let title: String
+	let description: String
+	let icon: String
+	let color: Color
 }
 
 #Preview {
