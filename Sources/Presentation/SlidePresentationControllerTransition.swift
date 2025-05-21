@@ -77,8 +77,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
 		let isScaleEnabled = prefersScaleEffect && presenting.view.convert(
 			presenting.view.frame.origin,
 			to: nil
-		).y == 0 &&
-			frame.origin.y == 0
+		).y == 0 && frame.origin.y == 0
 		let toCornerRadius = preferredToCornerRadius ?? UIScreen.main.displayCornerRadius(min: 0)
 		let fromCornerRadius = preferredFromCornerRadius ?? (preferredToCornerRadius ?? UIScreen.main.displayCornerRadius())
 		#endif

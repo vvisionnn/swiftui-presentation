@@ -53,6 +53,13 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
 			presentationController.layoutBackgroundViews()
 		}
 		animator.startAnimation(afterDelay: delay)
+		DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+			FrameRateRequest(
+				preferredFrameRate: Float(UIScreen.main.maximumFramesPerSecond),
+				duration: animator.duration
+			)
+			.perform()
+		}
 
 		if !transitionContext.isAnimated {
 			animator.stopAnimation(false)
