@@ -79,8 +79,9 @@ extension PresentationBridge {
 					if let presentedViewController = await presentingViewController?.presentedViewController {
 						await presentedViewController.dismissAsync(animated: true)
 					}
-					let presentedViewController = await UIHostingController(rootView: destination())
 					await MainActor.run {
+						let destination = self.destination()
+						let presentedViewController = UIHostingController(rootView: destination)
 						switch self.transition {
 						case let .custom(transitioningDelegate):
 							presentedViewController.modalPresentationStyle = self.transition.modalPresentationStyle
@@ -88,9 +89,11 @@ extension PresentationBridge {
 							presentedViewController.presentationDelegate = self
 						}
 						presentedViewController.view.backgroundColor = .clear
+						self.presentedViewController = presentedViewController
 					}
-					self.presentedViewController = presentedViewController
-					await presentingViewController?.presentAsync(presentedViewController, animated: true)
+					if let presentedViewController {
+						await presentingViewController?.presentAsync(presentedViewController, animated: true)
+					}
 				case (true, false):
 					guard presentedViewController != nil else { return }
 					defer { self.presentedViewController = nil }
