@@ -20,6 +20,6 @@ extension TransitionType {
 }
 
 extension TransitionType {
-	public static let scale: Self = .custom(NativeScaleTransitioningDelegate())
-	public static let interactiveFullSheet: Self = .custom(SlideTransitioningDelegate())
+	@MainActor public static let scale: Self = .custom(NativeScaleTransitioningDelegate())
+	@MainActor public static let interactiveFullSheet: Self = .custom(SlideTransitioningDelegate())
 }

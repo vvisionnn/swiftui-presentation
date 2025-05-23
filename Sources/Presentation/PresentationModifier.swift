@@ -16,6 +16,7 @@ public struct PresentationModifier<Destination: View>: ViewModifier {
 		self.transition = transition
 	}
 
+	@MainActor
 	public func body(content: Content) -> some View {
 		content.background(
 			PresentationBridge(
@@ -31,12 +32,12 @@ extension View {
 	@_disfavoredOverload
 	public func presentation<T: Sendable, Destination: View>(
 		item: Binding<T?>,
-		transition: TransitionType = .interactiveFullSheet,
+		transition: TransitionType? = nil,
 		@ViewBuilder destination: @escaping (T) -> Destination
 	) -> some View {
 		presentation(
 			isPresented: item.isNotNil(),
-			transition: transition
+			transition: transition ?? .interactiveFullSheet
 		) {
 			if let val = item.wrappedValue {
 				destination(returningLastNonNilValue({ item.wrappedValue }, default: val)())
@@ -48,13 +49,13 @@ extension View {
 
 	public func presentation<Destination: View>(
 		isPresented: Binding<Bool>,
-		transition: TransitionType = .interactiveFullSheet,
+		transition: TransitionType? = nil,
 		@ViewBuilder destination: @escaping () -> Destination
 	) -> some View {
 		modifier(
 			PresentationModifier(
 				isPresented: isPresented,
-				transition: transition,
+				transition: transition ?? .interactiveFullSheet,
 				destination: destination
 			)
 		)

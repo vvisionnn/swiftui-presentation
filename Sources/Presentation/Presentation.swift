@@ -102,6 +102,7 @@ extension PresentationBridge {
 			}
 		}
 
+		@MainActor
 		func updatePresentedViewController() {
 			guard let presentedViewController = presentedViewController as? UIHostingController<Destination>
 			else { return }

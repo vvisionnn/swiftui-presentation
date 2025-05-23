@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 class NativeScaleTransitioningDelegate: NSObject, UIViewControllerTransitioningDelegate {
 	// Return the animator object for presenting the view controller
 	func animationController(

@@ -340,7 +340,7 @@ extension Animation {
 	}
 }
 
-class AnimationTimingCurveProvider: NSObject, UITimingCurveProvider {
+final class AnimationTimingCurveProvider: NSObject, UITimingCurveProvider {
 	let timingCurve: Animation.Resolved.TimingCurve
 	init(timingCurve: Animation.Resolved.TimingCurve) {
 		self.timingCurve = timingCurve
